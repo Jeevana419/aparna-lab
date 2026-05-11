@@ -11,6 +11,8 @@ export default function Tests() {
   const [selectedTest, setSelectedTest] = useState(null)
   const [search, setSearch] = useState('')
   const [form, setForm] = useState({ user_name: '', contact: '', notes: '' })
+  const [prescriptionImage, setPrescriptionImage] = useState(null)
+  const [prescriptionPreview, setPrescriptionPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
@@ -25,6 +27,21 @@ export default function Tests() {
     (t.description || '').toLowerCase().includes(search.toLowerCase())
   )
 
+  // ── NEW: handle prescription image selection ──────────────────────────────
+  const handleImageChange = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast('Please select a valid image file', 'error'); return
+    }
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      setPrescriptionImage(ev.target.result)
+      setPrescriptionPreview(ev.target.result)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleBook = async (e) => {
     e.preventDefault()
     if (!form.user_name.trim() || !form.contact.trim()) {
@@ -32,10 +49,13 @@ export default function Tests() {
     }
     setSubmitting(true)
     try {
-      await createBooking({ ...form, test_id: selectedTest.id })
+      // prescription_image is sent as base64; backend stores it if it accepts the field
+      await createBooking({ ...form, test_id: selectedTest.id, prescription_image: prescriptionImage || null })
       toast('Test booked successfully! We will contact you soon.')
       setSelectedTest(null)
       setForm({ user_name: '', contact: '', notes: '' })
+      setPrescriptionImage(null)
+      setPrescriptionPreview(null)
     } catch {
       toast('Booking failed. Please try again.', 'error')
     } finally {
@@ -92,7 +112,7 @@ export default function Tests() {
       )}
 
       {/* Booking Modal */}
-      <Modal isOpen={!!selectedTest} onClose={() => setSelectedTest(null)} title="Book Lab Test">
+      <Modal isOpen={!!selectedTest} onClose={() => { setSelectedTest(null); setPrescriptionImage(null); setPrescriptionPreview(null) }} title="Book Lab Test">
         {selectedTest && (
           <div>
             <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 mb-5">
@@ -115,8 +135,36 @@ export default function Tests() {
                 <textarea className="input resize-none" rows={3} placeholder="Any special requirements..." value={form.notes}
                   onChange={e => setForm({ ...form, notes: e.target.value })} />
               </div>
+
+              {/* ── NEW: Prescription Image Upload ─────────────────────── */}
+              <div>
+                <label className="label">Prescription Image <span className="text-slate-400 font-normal">(optional)</span></label>
+                <label className="flex flex-col items-center justify-center w-full border-2 border-dashed border-teal-200 rounded-xl p-4 cursor-pointer hover:border-teal-400 hover:bg-teal-50 transition-colors">
+                  {prescriptionPreview ? (
+                    <img src={prescriptionPreview} alt="Prescription preview" className="max-h-40 rounded-lg object-contain" />
+                  ) : (
+                    <div className="flex flex-col items-center text-slate-400">
+                      <span className="text-3xl mb-1">📄</span>
+                      <span className="text-sm">Click to upload prescription image</span>
+                      <span className="text-xs mt-0.5">JPG, PNG, WEBP supported</span>
+                    </div>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                </label>
+                {prescriptionPreview && (
+                  <button
+                    type="button"
+                    className="mt-1 text-xs text-red-500 hover:text-red-700"
+                    onClick={() => { setPrescriptionImage(null); setPrescriptionPreview(null) }}
+                  >
+                    Remove image
+                  </button>
+                )}
+              </div>
+              {/* ─────────────────────────────────────────────────────────── */}
+
               <div className="flex gap-3 pt-2">
-                <button type="button" className="btn-secondary flex-1" onClick={() => setSelectedTest(null)}>Cancel</button>
+                <button type="button" className="btn-secondary flex-1" onClick={() => { setSelectedTest(null); setPrescriptionImage(null); setPrescriptionPreview(null) }}>Cancel</button>
                 <button type="submit" className="btn-primary flex-1" disabled={submitting}>
                   {submitting ? 'Booking...' : 'Confirm Booking'}
                 </button>
