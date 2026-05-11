@@ -42,15 +42,6 @@ def startup_event():
     try:
         from models.models import Owner, Test, Medicine
 
-        # Create default owner if not exists
-        if not db.query(Owner).first():
-            owner = Owner(
-                username="admin",
-                password_hash=get_password_hash("admin123")
-            )
-            db.add(owner)
-            db.commit()
-            print("✅ Default owner created: admin / admin123")
 
         # Seed Aparna Laboratory tests
         if not db.query(Test).first():
